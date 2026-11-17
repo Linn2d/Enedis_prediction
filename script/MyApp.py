@@ -52,7 +52,7 @@ elif page_key == "analyse":
     analyse_page()
     visualisation(data)
     # Trop de points ralentit la carte : on n'en prend que 2 000
-    data_carte = data.sample(2_000)
+    data_carte = data.sample(2_000, random_state=42)
     afficher_carte(data_carte)
 elif page_key == "prediction":
     prediction_page()
