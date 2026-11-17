@@ -9,3 +9,5 @@ models/__pycache__/analyse.cpython-311.pyc
 models/__pycache__/donnees.cpython-311.pyc
 models/__pycache__/prediction.cpython-311.pyc
 models/__pycache__/utils.cpython-311.pyc
+__pycache__/
+*.pyc
