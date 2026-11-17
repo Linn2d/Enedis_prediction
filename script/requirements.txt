@@ -1,6 +1,6 @@
 streamlit
-pandas
 numpy
+pandas
 matplotlib
 plotly
 scipy
@@ -12,6 +12,5 @@ folium
 streamlit-folium
 fastapi
 pydantic
-logging
 requests
 statsmodels
