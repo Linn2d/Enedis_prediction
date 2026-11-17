@@ -50,13 +50,23 @@ default_params = {
 
 
 # Récupérer les paramètres du modèle à partir de la barre latérale
-def get_model_params(model_option, default_params):
-    params = {}
+
+def get_model_params(model_option, default_params, prediction_type):
+    # Les critères valables ne sont pas les mêmes en classification et en régression
+    if prediction_type == "Étiquette DPE":
+        criteres = ["entropy", "gini", "log_loss"]
+        critere_defaut = "entropy"
+    else:
+        criteres = ["squared_error", "friedman_mse", "absolute_error", "poisson"]
+        critere_defaut = "squared_error"
+
+    params = {}    
+
     if model_option == "XGBoost":
         params["objective"] = st.sidebar.selectbox(
             "Objectif",
-            ["reg:squarederror", "reg:logistic"],
-            index=["reg:squarederror", "reg:logistic"].index(
+            ["reg:squarederror", "reg:absoluteerror"],
+            index=["reg:squarederror", "reg:absoluteerror"].index(
                 default_params["XGBoost"]["objective"]
             ),
         )
@@ -89,13 +99,14 @@ def get_model_params(model_option, default_params):
             value=default_params["XGBoost"]["colsample_bytree"],
         )
     elif model_option == "Arbre de Décision":
+
         params["criterion"] = st.sidebar.selectbox(
             "Critère",
-            ["entropy", "gini", "log_loss"],
-            index=["entropy", "gini", "log_loss"].index(
-                default_params["Arbre de Décision"]["criterion"]
-            ),
+            criteres,
+            index=criteres.index(critere_defaut),
+            key=f"criterion_arbre_{prediction_type}",
         )
+
         params["max_depth"] = st.sidebar.number_input(
             "Profondeur maximale",
             min_value=1,
@@ -119,10 +130,9 @@ def get_model_params(model_option, default_params):
         )
         params["criterion"] = st.sidebar.selectbox(
             "Critère",
-            ["entropy", "gini", "log_loss"],
-            index=["entropy", "gini", "log_loss"].index(
-                default_params["Forêt Aléatoire"]["criterion"]
-            ),
+            criteres,
+            index=criteres.index(critere_defaut),
+            key=f"criterion_foret_{prediction_type}",
         )
         params["max_depth"] = st.sidebar.number_input(
             "Profondeur maximale",
@@ -194,12 +204,38 @@ def prediction_page():
         target_variable = "Conso_5_usages_é_finale"
 
     # Récupération des paramètres du modèle
-    params = get_model_params(model_option, default_params)
+    params = get_model_params(model_option, default_params, prediction_type)
 
-    # Option de réentraînement du modèle dans la barre latérale
+   
+    # Option de réentraînement du modèle (en mémoire, propre à chaque visiteur)
+    model_key = f"model::{prediction_type}::{model_option}"
+
     if st.sidebar.button("Réentraîner le modèle", key="retrain_button"):
-        model = retrain_model(model_option, params, prediction_type)
-        st.sidebar.success(f"Modèle {model_option} réentraîné avec succès.")
+        with st.spinner("Entraînement en cours..."):
+            try:
+                new_model, score = retrain_model(model_option, params, prediction_type)
+            except Exception as e:
+                st.sidebar.error(f"Échec du réentraînement : {e}")
+            else:
+                st.session_state[model_key] = new_model
+                st.session_state[model_key + "::score"] = score
+
+    if model_key in st.session_state:
+        model = st.session_state[model_key]
+        st.sidebar.success(
+            f"Modèle {model_option} réentraîné (score sur le jeu de test : "
+            f"{st.session_state[model_key + '::score']:.3f})."
+        )
+        buf = BytesIO()
+        joblib.dump(model, buf)
+        st.sidebar.download_button(
+            "Télécharger le modèle réentraîné",
+            data=buf.getvalue(),
+            file_name=f"{model_option}_reentraine.pkl".replace(" ", "_"),
+        )
+        if st.sidebar.button("Revenir au modèle d'origine", key="reset_model"):
+            del st.session_state[model_key]
+            st.rerun()
     else:
         model = load_model(model_option, target_variable)
 

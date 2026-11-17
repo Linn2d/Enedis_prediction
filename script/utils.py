@@ -164,67 +164,108 @@ def train_and_save_models(data_path, target_variable):
     print(f"Modèles pour {target_variable} entraînés et sauvegardés avec succès.")
 
 
-# Fonction pour réentraîner le modèle avec les nouveaux paramètres
-def retrain_model(
-    model_option, params, prediction_type, data_path="../data/preprocessed_data.csv"
-):
-    # Charger les données
-    data = pd.read_csv(data_path)
+MAX_TRAIN_ROWS = 50_000  # à augmenter en local si besoin
 
-    # Sélection des caractéristiques et du modèle en fonction du type de prédiction
+CLASSIFICATION_FEATURES = [
+    "Conso_5_usages_par_m²_é_primaire",
+    "Conso_5_usages/m²_é_finale",
+    "Emission_GES_5_usages_par_m²",
+    "Etiquette_GES",
+    "Coût_éclairage",
+]
+# Même ordre que dans predict()
+REGRESSION_FEATURES = [
+    "Type_bâtiment",
+    "Qualité_isolation_enveloppe",
+    "Etiquette_GES",
+    "Surface_habitable_logement",
+    "Etiquette_DPE",
+    "Type_installation_chauffage",
+    "Ubat_W/m²_K",
+    "Qualité_isolation_murs",
+    "Type_énergie_n°1",
+    "Qualité_isolation_plancher_bas",
+    "Méthode_application_DPE",
+    "Qualité_isolation_menuiseries",
+]
+CLASSIFICATION_TARGET = "Etiquette_DPE"
+REGRESSION_TARGET = "Conso_5_usages_é_finale"
+
+MODEL_CLASSES = {
+    ("Étiquette DPE", "K-nearest neighbors"): KNeighborsClassifier,
+    ("Étiquette DPE", "Forêt Aléatoire"): RandomForestClassifier,
+    ("Étiquette DPE", "Arbre de Décision"): DecisionTreeClassifier,
+    ("Consommation Énergétique", "XGBoost"): XGBRegressor,
+    ("Consommation Énergétique", "Forêt Aléatoire"): RandomForestRegressor,
+    ("Consommation Énergétique", "Arbre de Décision"): DecisionTreeRegressor,
+}
+
+
+@st.cache_data
+def load_training_data(prediction_type):
     if prediction_type == "Étiquette DPE":
-        X = data[
-            [
-                "Conso_chauffage_é_primaire",
-                "Conso_5_usages_é_finale",
-                "Emission_GES_5_usages_par_m²",
-                "Etiquette_GES",
-                "Coût_éclairage",
-            ]
-        ]
-        y = data["Etiquette_DPE"]
-        # Sélection du modèle spécifique pour l'Étiquette DPE
-        if model_option == "K-nearest neighbors":
-            model = KNeighborsClassifier(**params)
-            model_filename = "etiquette_knn_model.pkl"
-        elif model_option == "Forêt Aléatoire":
-            model = RandomForestClassifier(**params)
-            model_filename = "etiquette_random_forest_model.pkl"
-        elif model_option == "Arbre de Décision":
-            model = DecisionTreeClassifier(**params)
-            model_filename = "etiquette_arbre_de_decision_model.pkl"
-    elif prediction_type == "Consommation Énergétique":
-        X = data[
-            [
-                "Surface_habitable_logement",
-                "Ubat_W/m²_K",
-                "Etiquette_DPE",
-                "Type_énergie_principale_chauffage",
-            ]
-        ]
-        y = data["Conso_5_usages_é_finale"]
-        # Sélection du modèle spécifique pour la Consommation Énergétique
-        if model_option == "XGBoost":
-            model = XGBRegressor(**params)
-            model_filename = "consommation_xgboost_model.pkl"
-        elif model_option == "Forêt Aléatoire":
-            model = RandomForestRegressor(**params)
-            model_filename = "consommation_random_forest_model.pkl"
-        elif model_option == "Arbre de Décision":
-            model = DecisionTreeRegressor(**params)
-            model_filename = "consommation_arbre_de_decision_model.pkl"
+        path = os.path.join(DATA_DIR, "preprocess_data_classification.csv")
+        return pd.read_csv(path, sep=";", index_col=0, encoding="utf-8-sig")
+    path = os.path.join(DATA_DIR, "preprocess_data_regression.csv")
+    return pd.read_csv(path, sep=",", encoding="utf-8-sig")
 
+
+def _encode_like_predict(df):
+    """Encode les colonnes texte avec encoding_maps (insensible à la casse)."""
+    df = df.copy()
+    for col in REGRESSION_FEATURES:
+        if col in encoding_maps:
+            lookup = {str(k).strip().lower(): v for k, v in encoding_maps[col].items()}
+            df[col] = df[col].astype(str).str.strip().str.lower().map(lookup)
+    return df
+
+
+# Réentraîne un modèle EN MÉMOIRE : rien n'est écrit sur le disque
+def retrain_model(model_option, params, prediction_type):
+    data = load_training_data(prediction_type)
+
+    if prediction_type == "Étiquette DPE":
+        features, target = CLASSIFICATION_FEATURES, CLASSIFICATION_TARGET
+    else:
+        features, target = REGRESSION_FEATURES, REGRESSION_TARGET
+
+    missing = [c for c in features + [target] if c not in data.columns]
+    if missing:
+        raise ValueError(
+            f"Colonnes absentes du fichier d'entraînement : {missing}. "
+            f"Colonnes disponibles : {list(data.columns)}"
+        )
+
+    data = data[features + [target]]
+    if prediction_type != "Étiquette DPE":
+        data = _encode_like_predict(data)
+    data = data.dropna()
+
+    if len(data) < 1000:
+        raise ValueError(
+            f"Seulement {len(data)} lignes exploitables après encodage : "
+            "vérifier que les valeurs du CSV correspondent à encoding_maps."
+        )
+    if len(data) > MAX_TRAIN_ROWS:
+        data = data.sample(MAX_TRAIN_ROWS, random_state=42)
+
+    X, y = data[features], data[target]
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
 
-    # Entraîner le modèle
+    params = dict(params)
+    if prediction_type != "Étiquette DPE" and "criterion" in params:
+        valides = ("squared_error", "friedman_mse", "absolute_error", "poisson")
+        if params["criterion"] not in valides:
+            params["criterion"] = "squared_error"
+
+    model = MODEL_CLASSES[(prediction_type, model_option)](**params)
     model.fit(X_train, y_train)
 
-    # Sauvegarder le modèle
-    joblib.dump(model, model_filename)
-    return model
-
+    # Précision (classification) ou R² (régression) sur le jeu de test
+    score = model.score(X_test, y_test)
+    return model, score
 
 # Mapping des valeurs pour les encodages
 encoding_maps = {
