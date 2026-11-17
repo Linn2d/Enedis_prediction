@@ -3,7 +3,7 @@ import pandas as pd
 import folium
 import os
 
-from streamlit_folium import folium_static
+from streamlit_folium import st_folium
 import streamlit as st
 import pandas as pd
 import seaborn as sns
@@ -17,12 +17,6 @@ from utils import (
     calculate_kpis,
     afficher_kpis,
 )
-
-# Charger les données une fois pour les partager entre les fonctions
-current_dir = os.path.dirname(__file__)
-file_path = os.path.join(current_dir, "..", "data", "dataset_M2_enedis.csv")
-
-data = pd.read_csv(file_path, sep=";", dtype={"Code_INSEE_(BAN)": str}, low_memory=False)
 
 
 def analyse_page():
@@ -180,37 +174,60 @@ def visualisation(data):
             st.plotly_chart(fig)
 
 
+DPE_COLORS = {
+    "A": "#2e7d32",
+    "B": "#66bb6a",
+    "C": "#c0ca33",
+    "D": "#fdd835",
+    "E": "#fb8c00",
+    "F": "#e53935",
+    "G": "#8e0000",
+}
+def ajouter_legende(m):
+    lignes = "".join(
+        f'<div style="margin:2px 0;">'
+        f'<span style="display:inline-block;width:12px;height:12px;border-radius:50%;'
+        f'background:{couleur};margin-right:6px;"></span>{etiquette}</div>'
+        for etiquette, couleur in DPE_COLORS.items()
+    )
+    legende = f"""
+    <div style="position:fixed; bottom:30px; left:30px; z-index:9999;
+                background:white; padding:8px 12px; border:1px solid #999;
+                border-radius:6px; font-size:13px; color:#222;
+                box-shadow:0 1px 4px rgba(0,0,0,0.3);">
+        <b>Étiquette DPE</b>
+        {lignes}
+    </div>
+    """
+    m.get_root().html.add_child(folium.Element(legende))
+
+@st.cache_resource(show_spinner="Construction de la carte...")
+def build_map(points):
+    m = folium.Map(
+        location=[points["lat"].mean(), points["lon"].mean()],
+        zoom_start=10,
+        prefer_canvas=True,  # dessine sur un canvas au lieu de milliers d'éléments HTML
+    )
+    for lat, lon, etiq in zip(points["lat"], points["lon"], points["Etiquette_DPE"]):
+        folium.CircleMarker(
+            location=[lat, lon],
+            radius=4,
+            color=DPE_COLORS.get(etiq, "#757575"),
+            fill=True,
+            fill_opacity=0.8,
+            weight=0,
+            tooltip=f"Étiquette DPE : {etiq}",
+        ).add_to(m)
+    ajouter_legende(m)
+    return m
+
+
 def afficher_carte(data):
     st.title("Carte des étiquettes DPE")
 
-    # Filtrer les données pour enlever les lignes contenant des NaN dans les colonnes 'lat' et 'lon'
-    data = data.dropna(subset=["lat", "lon"])
+    # Seules les 3 colonnes utiles sont gardées (cache plus léger)
+    points = data[["lat", "lon", "Etiquette_DPE"]].dropna(subset=["lat", "lon"])
 
-    # Créer une carte Folium centrée sur la France
-    m = folium.Map(location=[46.603354, 1.888334], zoom_start=6, ax_bounds=True)
-
-    # Définir une palette de couleurs pour les étiquettes DPE
-    dpe_colors = {
-        "A": "green",  # Vert
-        "B": "darkgreen",  # Vert plus foncé
-        "C": "lightgreen",  # Vert clair
-        "D": "yellow",  # Jaune
-        "E": "yellow",  # Jaune
-        "F": "orange",  # Orange
-        "G": "red",  # Rouge
-    }
-
-    # Ajouter des marqueurs pour chaque point de données
-    for _, row in data.iterrows():
-        etiq = row["Etiquette_DPE"]
-        color = dpe_colors.get(
-            etiq, "gray"
-        )  # Utiliser 'gray' par défaut si l'étiquette n'est pas dans le dictionnaire
-        folium.Marker(
-            location=[row["lat"], row["lon"]],
-            popup=f"Étiquette DPE: {etiq}",
-            icon=folium.Icon(color=color),
-        ).add_to(m)
-
-    # Afficher la carte dans Streamlit
-    folium_static(m, width=1500, height=1000)
+    if st.toggle("Afficher la carte (peut prendre quelques secondes)", value=False):
+        m = build_map(points)
+        st_folium(m, height=600, use_container_width=True, returned_objects=[])
