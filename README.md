@@ -12,10 +12,11 @@ L'application est déployée en ligne, vous pouvez l'essayer [ici](https://enedi
 ## Fonctionnalités
 
 - **Accueil** : Présentation de l'application et de ses fonctionnalités.
-- **Contexte** : Permet d'explorer les données du projet et d'obtenir de nouvelles données en faisant appel à l'API.
-- **Analyse** : Permet de suivre les différents KPI et de visualiser les données à l'aide de divers graphiques ainsi qu'une carte de géolocalisation.
-- **Prédiction Locale** : Permet de réaliser des prédictions spécifiques à un logement en fonction de ses caractéristiques locales, en fournissant une estimation personnalisée du Diagnostic de Performance Énergétique (DPE) et de la consommation énergétique.
-- **Prédiction avec API** : Permet de réaliser des prédictions en utilisant l'API pour obtenir des estimations automatisées du Diagnostic de Performance Énergétique (DPE) et de la consommation énergétique à partir des caractéristiques des logements.
+- **Contexte** : Permet d'explorer les données du projet (filtres, aperçu, téléchargement en CSV). Les données sont une extraction de la base DPE de l'ADEME, arrêtée à septembre 2024.
+- **Analyse** : Permet de suivre les différents KPI et de visualiser les données à l'aide de divers graphiques, ainsi qu'une carte de géolocalisation des étiquettes DPE avec légende (affichée à la demande pour accélérer le chargement de la page).
+- **Prédiction Locale** : Permet de réaliser des prédictions spécifiques à un logement en fonction de ses caractéristiques, avec une estimation de l'étiquette DPE ou de la consommation énergétique. Les modèles peuvent être **réentraînés** avec les paramètres de son choix : le modèle réentraîné est conservé en mémoire pour la session (avec son score sur un jeu de test) et peut être téléchargé. Il n'est pas enregistré sur le serveur et un bouton permet de revenir au modèle d'origine.
+- **Prédiction avec API** : Permet de réaliser des prédictions en appelant l'API FastAPI pour obtenir des estimations de l'étiquette DPE et de la consommation énergétique.
+
 
 ## ☁️ Déploiement
 
@@ -31,8 +32,15 @@ Les deux services se redéploient automatiquement à chaque `push` sur la branch
 L'interface trouve l'API grâce au paramètre `API_URL`, lu dans cet ordre :
 
 1. la variable d'environnement `API_URL`
-2. le secret Streamlit `API_URL` (utilisé sur Streamlit Cloud)
+2. le secret Streamlit `API_URL` (utilisé sur Streamlit Cloud, à renseigner dans *Settings → Secrets*)
 3. une valeur par défaut : `http://127.0.0.1:8001`
+
+### Limites connues
+
+- **Mise en veille de l'API** : sur l'offre gratuite de Render, la première requête après une période d'inactivité est lente.
+- **Réentraînement non persistant** : sur Streamlit Cloud, un modèle réentraîné n'existe que pendant la session de l'utilisateur.
+- **Données figées** : la mise à jour automatique depuis l'API de l'ADEME a été désactivée, car l'ADEME a remplacé son jeu de données et changé son schéma de champs.
+- **Ressources limitées** : l'entraînement porte sur un échantillon de 50 000 lignes au maximum, pour rester dans la mémoire disponible de l'offre gratuite.
 
 ## Prérequis
 
@@ -62,21 +70,12 @@ L'interface trouve l'API grâce au paramètre `API_URL`, lu dans cet ordre :
 
     ```bash
     pip install -r script/requirements.txt
-    pip install uvicorn fastapi
+    pip install -r requirements-api.txt
     ```
 
 ## Utilisation en local
 
-1. Assurez-vous que les fichiers de modèles suivants sont bien présents dans le dossier `models/` pour la prédiction locale :
-
-- **etiquette_knn_model.pkl**
-- **etiquette_arbre_de_decision_model.pkl**
-- **etiquette_random_forest_model.pkl**
-- **consommation_xgboost_model.pkl**
-- **consommation_arbre_de_decision_model.pkl**
-- **consommation_random_forest.pkl**
-
-Si ces fichiers sont manquants, exécutez le notebook `script/create_and_save_model.ipynb` pour les générer.
+1. Les modèles utilisés par la prédiction locale et par l'API se trouvent dans le dossier `models/`. S'ils sont manquants, exécutez le notebook `script/create_and_save_model.ipynb` pour les générer.
 
 2. Lancez l'API dans un premier terminal :
 
@@ -98,7 +97,7 @@ Si ces fichiers sont manquants, exécutez le notebook `script/create_and_save_mo
     http://localhost:8501
     ```
 
-> Les versions de `scikit-learn` (1.5.2) et de `xgboost` sont fixées, car les modèles enregistrés ne se rechargent correctement qu'avec les versions utilisées pour les entraîner.
+> Les versions de `scikit-learn` (1.5.2) et de `xgboost` (3.4.1) sont fixées, car les modèles enregistrés ne se rechargent correctement qu'avec les versions utilisées pour les entraîner.
 
 ## Auteurs
 
@@ -106,9 +105,11 @@ Si ces fichiers sont manquants, exécutez le notebook `script/create_and_save_mo
 - [Quentin Lim](https://github.com/QL2111)
 - [Linh Nhi LE DINH](https://github.com/Linn2d)
 
+Projet réalisé en groupe dans le cadre du Master 2 SISE.
+
 ## Liens
 
 - [Vidéo demo](https://www.canva.com/design/DAGWCCn4eGE/Yi-rUdOqfwgIEOLZ5MxKiQ/watch?utm_content=DAGWCCn4eGE&utm_campaign=designshare&utm_medium=link&utm_source=editor)
-- [OpenData-InfoClimat(température)](https://www.infoclimat.fr/opendata/)
-- [ADEME DPE Logements existants](https://data.ademe.fr/datasets/dpe-v2-logements-existants/api-doc)
-- [ADEME DPE Logements neufs](https://data.ademe.fr/datasets/dpe-v2-logements-neufs)
+- [OpenData-InfoClimat (température)](https://www.infoclimat.fr/opendata/)
+- [ADEME DPE Logements existants (depuis juillet 2021)](https://data.ademe.fr/datasets/dpe03existant)
+- [ADEME DPE Logements neufs](https://data.ademe.fr/datasets/dpe02neuf)
