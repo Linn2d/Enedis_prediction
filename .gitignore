@@ -11,3 +11,4 @@ models/__pycache__/prediction.cpython-311.pyc
 models/__pycache__/utils.cpython-311.pyc
 __pycache__/
 *.pyc
+.venv/
