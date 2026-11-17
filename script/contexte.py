@@ -7,6 +7,9 @@ import requests
 import os
 import pandas as pd
 
+DATASET_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "data", "dataset_M2_enedis.csv"
+)
 
 def contexte_page():
     st.header("Données")
@@ -247,7 +250,7 @@ def contexte_page():
                 ignore_index=True,
             )
             df_merged.to_csv(
-                "../data/dataset_M2_enedis.csv",
+                DATASET_PATH,
                 index=False,
                 sep=";",
                 encoding="utf-8-sig",
@@ -265,7 +268,7 @@ def contexte_page():
     # Bouton pour rafraichir les données
     if st.button("Rafraichir les données :"):
         st.write("Rafraichissement des données en cours...")
-        df_merged = pd.read_csv("../data/dataset_M2_enedis.csv", sep=";")
+        df_merged = pd.read_csv(DATASET_PATH, sep=";")
         oldest_date = df_merged["Date_réception_DPE"].max()
         with st.spinner("Appel de l'API en cours..."):
 
@@ -316,7 +319,7 @@ def contexte_page():
                 ignore_index=True,
             )
             df_merged_refresh.to_csv(
-                "../data/dataset_M2_enedis.csv",
+                DATASET_PATH,
                 index=False,
                 sep=";",
                 encoding="utf-8-sig",
@@ -344,8 +347,8 @@ def contexte_page():
             # Option de téléchargement pour les CSV créés
             st.download_button(
                 "Télécharger les données fusionnées",
-                data=open("../data/dataset_M2_enedis.csv", "rb"),
-                file_name="../data/dataset_M2_enedis.csv",
+                data=open(DATASET_PATH, "rb"),
+                file_name="dataset_M2_enedis.csv",
             )
 
 

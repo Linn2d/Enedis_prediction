@@ -18,7 +18,11 @@ import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
+import os
 
+MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "models")
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
+PREPROCESSED_PATH = os.path.join(DATA_DIR, "preprocessed_data.csv")
 
 def create_plotly_pie_chart(labels, sizes):
     fig = px.pie(
@@ -82,14 +86,14 @@ def save_fig_as_png(fig, filename):
 def load_model(model_option, target_variable):
     models = {
         "Conso_5_usages_é_finale": {
-            "XGBoost": "../models/consommation_xgboost_model.pkl",
-            "Arbre de Décision": "../models/consommation_arbre_de_decision_model.pkl",
-            "Forêt Aléatoire": "../models/consommation_random_forest.pkl",
+            "XGBoost": os.path.join(MODELS_DIR, "consommation_xgboost_model.pkl"),
+            "Arbre de Décision": os.path.join(MODELS_DIR, "consommation_arbre_de_decision_model.pkl"),
+            "Forêt Aléatoire": os.path.join(MODELS_DIR, "consommation_random_forest.pkl"),
         },
         "Etiquette_DPE": {
-            "K-nearest neighbors": "../models/etiquette_knn_model.pkl",
-            "Arbre de Décision": "../models/etiquette_arbre_de_decision_model.pkl",
-            "Forêt Aléatoire": "../models/etiquette_random_forest_model.pkl",
+            "K-nearest neighbors": os.path.join(MODELS_DIR, "etiquette_knn_model.pkl"),
+            "Arbre de Décision": os.path.join(MODELS_DIR, "etiquette_arbre_de_decision_model.pkl"),
+            "Forêt Aléatoire": os.path.join(MODELS_DIR, "etiquette_random_forest_model.pkl"),
         },
     }
     model_file = models[target_variable][model_option]

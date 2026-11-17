@@ -1,5 +1,7 @@
 import streamlit as st
 import requests
+from config import API_URL
+
 
 def prediction_api_page():
     st.title("Prédiction avec API")
@@ -27,7 +29,7 @@ def prediction_api_page():
         if st.button("Prédire l'étiquette DPE"):
             model_type = "knn" if model_option == "KNN" else "arbre"  #
             response = requests.post(
-                "http://127.0.0.1:8001/predict/label",
+                f"{API_URL}/predict/label",
                 json={
                     "Conso_chauffage_e_primaire": conso_chauffage,
                     "Conso_5_usages_e_finale": conso_5_usages,
@@ -97,7 +99,7 @@ def prediction_api_page():
                     "Random Forest": "rdforest", 
                 }
                 response = requests.post(
-                    "http://127.0.0.1:8001/predict/consumption",
+                    f"{API_URL}/predict/consumption",
                     json={
                         "Type_bâtiment": type_batiment,
                         "Qualité_isolation_enveloppe": qualite_isolation_enveloppe,
