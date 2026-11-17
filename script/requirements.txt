@@ -11,4 +11,3 @@ seaborn
 folium
 streamlit-folium
 requests
-statsmodels
