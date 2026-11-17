@@ -18,4 +18,4 @@ def accueil_page():
 
     
     image_path = os.path.join(os.path.dirname(__file__), "..", "data", "greentech.jpg")
-    st.image(image_path, use_column_width=True)
+    st.image(image_path, width="stretch")

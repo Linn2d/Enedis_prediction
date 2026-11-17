@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+from pathlib import Path
 import pandas as pd
 import joblib
 import logging
@@ -9,15 +10,17 @@ app = FastAPI()
 # Configurer le logging pour voir les erreurs
 logging.basicConfig(level=logging.INFO)
 
-# Charger les modèles (assurez-vous que les fichiers sont dans le même dossier)
-models = {
-    "consumption_xgboost": joblib.load("../models/xgboost.pkl"),
-    "consumption_rdforest": joblib.load("../models/rdforest.joblib"),
-    #"consumption_linearreg": joblib.load("linearReg.pkl"),
-    "label_knn": joblib.load("../models/etiquette_knn_model.pkl"),
-    "label_arbre": joblib.load("../models/etiquette_arbre_de_decision_model.pkl")
-}
+BASE_DIR = Path(__file__).resolve().parent   # dossier script/
+MODELS_DIR = BASE_DIR.parent / "models"      # dossier models/ à la racine
 
+# Charger les modèles
+models = {
+    "consumption_xgboost": joblib.load(MODELS_DIR / "xgboost.pkl"),
+    "consumption_rdforest": joblib.load(MODELS_DIR / "rdforest.joblib"),
+    # "consumption_linearreg": joblib.load(MODELS_DIR / "linearReg.pkl"),
+    "label_knn": joblib.load(MODELS_DIR / "etiquette_knn_model.pkl"),
+    "label_arbre": joblib.load(MODELS_DIR / "etiquette_arbre_de_decision_model.pkl"),
+}
 # Dictionnaire de mapping pour les étiquettes DPE
 label_mapping = {0: "A", 1: "B", 2: "C", 3: "D", 4: "E", 5: "F", 6: "G"}
 

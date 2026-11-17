@@ -22,7 +22,7 @@ from utils import (
 current_dir = os.path.dirname(__file__)
 file_path = os.path.join(current_dir, "..", "data", "dataset_M2_enedis.csv")
 
-data = pd.read_csv(file_path, sep=";")
+data = pd.read_csv(file_path, sep=";", dtype={"Code_INSEE_(BAN)": str}, low_memory=False)
 
 
 def analyse_page():

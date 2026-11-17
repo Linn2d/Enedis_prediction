@@ -12,7 +12,7 @@ import subprocess
 import time
 import requests
 import pandas as pd
-
+import sys
 
 # Charger les données une fois pour les partager entre les fonctions
 current_dir = os.path.dirname(__file__)
@@ -25,7 +25,7 @@ data = pd.read_csv(file_path, sep=";")
 def start_api():
     process = subprocess.Popen(
         [
-            "python",
+            sys.executable,
             "-m",
             "uvicorn",
             "api:app",
@@ -33,7 +33,6 @@ def start_api():
             "127.0.0.1",
             "--port",
             "8001",
-            "--reload",
         ]
     )
     time.sleep(3)  # Pause initiale pour permettre le lancement
